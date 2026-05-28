@@ -1,5 +1,5 @@
 [Unit]
-Description=Sibtrans Giveaway polling bot
+Description=Sibtrans Giveaway admin app
 After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 
@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/bot/giveaway/giveaway_bot
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/bot/giveaway/giveaway_bot/.venv/bin/python bot_runner.py
+ExecStart=/bot/giveaway/giveaway_bot/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
