@@ -121,7 +121,7 @@ def load_config() -> Config:
         webhook_path=os.getenv("WEBHOOK_PATH", "/telegram/webhook"),
         webhook_secret_token=os.getenv("WEBHOOK_SECRET_TOKEN"),
         server_host=os.getenv("WEBHOOK_HOST", "0.0.0.0"),
-        server_port=_parse_int_env("WEBHOOK_PORT", 8080),
+        server_port=_parse_int_env("WEBHOOK_PORT", 8000),
         subscription_chat_id=os.getenv("SUBSCRIPTION_CHAT_ID", "@sibtrans_ru"),
         subscription_url=os.getenv(
             "SUBSCRIPTION_URL", "https://t.me/sibtrans_ru"),

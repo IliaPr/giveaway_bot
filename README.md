@@ -96,7 +96,7 @@ poetry run alembic upgrade head
 6. Запустите FastAPI-приложение с polling и SQLAdmin:
 
 ```bash
-./.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+./.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 7. В отдельном терминале запустите Celery worker:
