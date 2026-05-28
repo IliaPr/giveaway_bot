@@ -27,6 +27,7 @@ async def lifespan(_: FastAPI):
         raise RuntimeError(
             "WEBHOOK_BASE_URL is required to run the bot in webhook mode.")
 
+    await bot.delete_webhook(drop_pending_updates=False)
     await bot.set_webhook(
         url=webhook_url,
         allowed_updates=dispatcher.resolve_used_update_types(),
