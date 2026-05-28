@@ -1,8 +1,8 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from aiogram.types import Update
-from fastapi import FastAPI, Header, HTTPException, Request, status
+from fastapi import FastAPI
 
 from admin import setup_admin
 from runtime import build_runtime, close_runtime
@@ -22,16 +22,22 @@ dispatcher = runtime.dispatcher
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    print(await bot.set_webhook(
-        url=config.webhook_url,
-        allowed_updates=dispatcher.resolve_used_update_types(),
-        secret_token=config.webhook_secret_token,
-    ))
+    await bot.delete_webhook(drop_pending_updates=False)
+    polling_task = asyncio.create_task(
+        dispatcher.start_polling(
+            bot,
+            allowed_updates=dispatcher.resolve_used_update_types(),
+            handle_signals=False,
+            close_bot_session=False,
+        )
+    )
 
     try:
         yield
     finally:
-        await bot.delete_webhook(drop_pending_updates=False)
+        if not polling_task.done():
+            await dispatcher.stop_polling()
+        await polling_task
         await close_runtime(runtime)
 
 
@@ -42,20 +48,6 @@ admin = setup_admin(app, config)
 @app.get("/healthz")
 async def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.post(config.webhook_path)
-async def telegram_webhook(
-    request: Request,
-    x_telegram_bot_api_secret_token: str | None = Header(default=None),
-) -> dict[str, bool]:
-    if config.webhook_secret_token and x_telegram_bot_api_secret_token != config.webhook_secret_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid secret token")
-
-    update = Update.model_validate(await request.json(), context={"bot": bot})
-    await dispatcher.feed_update(bot, update)
-    return {"ok": True}
 
 if __name__ == "__main__":
     try:

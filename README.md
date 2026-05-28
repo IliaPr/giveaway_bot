@@ -71,7 +71,7 @@ cp .env.example .env
 ```
 
 2. Заполните `.env`.
-Обязательно проверьте `BOT_TOKEN`, `WEBHOOK_BASE_URL`, `DB_*`, `REDIS_URL`, `CELERY_*`, `ADMIN_IDS`.
+Обязательно проверьте `BOT_TOKEN`, `DB_*`, `REDIS_URL`, `CELERY_*`, `ADMIN_IDS`.
 
 3. Поднимите PostgreSQL.
 Если PostgreSQL установлен через Homebrew:
@@ -93,7 +93,7 @@ brew services start redis
 poetry run alembic upgrade head
 ```
 
-6. Запустите FastAPI-приложение с webhook и SQLAdmin:
+6. Запустите FastAPI-приложение с polling и SQLAdmin:
 
 ```bash
 ./.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 --reload
@@ -111,13 +111,7 @@ poetry run alembic upgrade head
 ./.venv/bin/celery -A celery_app.celery_app beat --loglevel=info
 ```
 
-9. Если у вас нет публичного домена, поднимите туннель до локального FastAPI, например через ngrok:
-
-```bash
-ngrok http 8080
-```
-
-10. Скопируйте публичный URL ngrok в `WEBHOOK_BASE_URL` и перезапустите FastAPI.
+После запуска бот получает обновления через polling, поэтому публичный webhook URL и туннель больше не нужны.
 
 После этого должны работать:
 

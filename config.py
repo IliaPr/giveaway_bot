@@ -19,7 +19,7 @@ class Config:
     celery_broker_url: str
     celery_result_backend: str
     celery_raffle_check_seconds: int
-    webhook_base_url: str
+    webhook_base_url: str | None
     webhook_path: str
     webhook_secret_token: str | None
     server_host: str
@@ -91,7 +91,9 @@ class Config:
         )
 
     @property
-    def webhook_url(self) -> str:
+    def webhook_url(self) -> str | None:
+        if not self.webhook_base_url:
+            return None
         base_url = self.webhook_base_url.rstrip("/")
         path = self.webhook_path if self.webhook_path.startswith(
             "/") else f"/{self.webhook_path}"
@@ -115,7 +117,7 @@ def load_config() -> Config:
             "CELERY_RESULT_BACKEND", os.getenv("REDIS_URL", "")),
         celery_raffle_check_seconds=_parse_int_env(
             "CELERY_RAFFLE_CHECK_SECONDS", 60),
-        webhook_base_url=_require_env("WEBHOOK_BASE_URL"),
+        webhook_base_url=os.getenv("WEBHOOK_BASE_URL"),
         webhook_path=os.getenv("WEBHOOK_PATH", "/telegram/webhook"),
         webhook_secret_token=os.getenv("WEBHOOK_SECRET_TOKEN"),
         server_host=os.getenv("WEBHOOK_HOST", "0.0.0.0"),
