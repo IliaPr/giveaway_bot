@@ -21,7 +21,8 @@ def draw_results(
     for prize in competitive_prizes:
         if not available:
             break
-        winners = randomizer.sample(available, k=min(prize.winner_count, len(available)))
+        winners = randomizer.sample(available, k=min(
+            prize.winner_count, len(available)))
         winner_ids = {winner.id for winner in winners}
         assignments.extend(
             PrizeAssignment(
@@ -32,7 +33,8 @@ def draw_results(
             )
             for winner in winners
         )
-        available = [participant for participant in available if participant.id not in winner_ids]
+        available = [
+            participant for participant in available if participant.id not in winner_ids]
 
     assignments.extend(
         PrizeAssignment(
@@ -54,14 +56,19 @@ def build_personal_result_text(
 ) -> str:
     if result.prize_code == stickerpack_prize_code and stickerpack_url:
         return (
-            "Вы зарегистрированы!\n\n"
-            f"Ваш результат: {escape(result.prize_title)}\n"
-            f"Стикерпак: {escape(stickerpack_url)}"
+            "🎉 Поздравляем!\n\n"
+            "Вы стали победителем розыгрыша от «Байт Транзит»\n\n"
+            f"Ваш приз: {escape(result.prize_title)}\n"
+            f"Стикерпак: {escape(stickerpack_url)}\n\n"
+            "Спасибо за участие и отличного вам дня на выставке!"
         )
 
     return (
-        "Вы зарегистрированы!\n\n"
-        f"Ваш результат: {escape(result.prize_title)}"
+        "🎉 Поздравляем!\n\n"
+        "Вы стали победителем розыгрыша от «Байт Транзит»\n\n"
+        f"Ваш приз: {escape(result.prize_title)}\n\n"
+        "Спасибо, что приняли участие! Наш менеджер свяжется с вами в ближайшее время для вручения приза\n\n"
+        "Спасибо за участие и отличного вам дня на выставке!"
     )
 
 

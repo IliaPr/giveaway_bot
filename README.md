@@ -19,15 +19,21 @@ RAFFLE_TIMEZONE=
 RAFFLE_AT=
 RAFFLE_DISPLAY_TEXT=
 
+CERTIFICATE_TITLE=🏆 Сертификат на перевозку
 CERTIFICATE_WINNERS=1
-MERCH_1_WINNERS=3
-MERCH_2_WINNERS=3
-MERCH_3_WINNERS=3
+MERCH_1_TITLE=🎁 Увлажнитель воздуха
+MERCH_1_WINNERS=1
+MERCH_2_TITLE=🎁 Термос
+MERCH_2_WINNERS=2
+MERCH_3_TITLE=🎁 Термокружка
+MERCH_3_WINNERS=5
 
-STICKERPACK_TITLE=
-STICKERPACK_URL=
+STICKERPACK_TITLE=🎁 Стикерпак Bait Tranzit
+STICKERPACK_URL=https://t.me/addstickers/bait_tranzit
 ADMIN_IDS=
 ```
+
+`*_WINNERS` задают число отдельных победителей по категории. Если `MERCH_3_TITLE=🎁 Термокружка` и `MERCH_3_WINNERS=5`, бот выберет 5 разных участников на термокружки.
 
 ## Google Sheets
 

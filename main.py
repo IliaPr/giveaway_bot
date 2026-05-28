@@ -22,11 +22,11 @@ dispatcher = runtime.dispatcher
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await bot.set_webhook(
+    print(await bot.set_webhook(
         url=config.webhook_url,
         allowed_updates=dispatcher.resolve_used_update_types(),
         secret_token=config.webhook_secret_token,
-    )
+    ))
 
     try:
         yield

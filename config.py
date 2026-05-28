@@ -40,9 +40,13 @@ class Config:
     admin_base_url: str
     admin_title: str
     admin_ids: frozenset[int]
+    certificate_title: str
     certificate_winners: int
+    merch_1_title: str
     merch_1_winners: int
+    merch_2_title: str
     merch_2_winners: int
+    merch_3_title: str
     merch_3_winners: int
     stickerpack_title: str
     stickerpack_url: str | None
@@ -52,25 +56,25 @@ class Config:
         prizes = (
             PrizeCategory(
                 code="certificate",
-                title="🏆 Сертификат на перевозку 100 000 руб.",
+                title=self.certificate_title,
                 winner_count=max(self.certificate_winners, 0),
                 order=1,
             ),
             PrizeCategory(
                 code="merch_1",
-                title="🎁 Мерч (вид 1)",
+                title=self.merch_1_title,
                 winner_count=max(self.merch_1_winners, 0),
                 order=2,
             ),
             PrizeCategory(
                 code="merch_2",
-                title="🎁 Мерч (вид 2)",
+                title=self.merch_2_title,
                 winner_count=max(self.merch_2_winners, 0),
                 order=3,
             ),
             PrizeCategory(
                 code="merch_3",
-                title="🎁 Мерч (вид 3)",
+                title=self.merch_3_title,
                 winner_count=max(self.merch_3_winners, 0),
                 order=4,
             ),
@@ -137,13 +141,21 @@ def load_config() -> Config:
         admin_base_url=os.getenv("ADMIN_BASE_URL", "/admin"),
         admin_title=os.getenv("ADMIN_TITLE", "Sibtrans Admin"),
         admin_ids=_parse_admin_ids(os.getenv("ADMIN_IDS", "")),
+        certificate_title=os.getenv(
+            "CERTIFICATE_TITLE", "🏆 Сертификат на перевозку"
+        ),
         certificate_winners=_parse_int_env("CERTIFICATE_WINNERS", 1),
-        merch_1_winners=_parse_int_env("MERCH_1_WINNERS", 0),
-        merch_2_winners=_parse_int_env("MERCH_2_WINNERS", 0),
-        merch_3_winners=_parse_int_env("MERCH_3_WINNERS", 0),
+        merch_1_title=os.getenv("MERCH_1_TITLE", "🎁 Увлажнитель воздуха"),
+        merch_1_winners=_parse_int_env("MERCH_1_WINNERS", 1),
+        merch_2_title=os.getenv("MERCH_2_TITLE", "🎁 Термос"),
+        merch_2_winners=_parse_int_env("MERCH_2_WINNERS", 2),
+        merch_3_title=os.getenv("MERCH_3_TITLE", "🎁 Кружка"),
+        merch_3_winners=_parse_int_env("MERCH_3_WINNERS", 5),
         stickerpack_title=os.getenv(
-            "STICKERPACK_TITLE", "😊 Стикерпак с Гришей"),
-        stickerpack_url=os.getenv("STICKERPACK_URL"),
+            "STICKERPACK_TITLE", "🎁 Стикерпак Bait Tranzit"),
+        stickerpack_url=os.getenv(
+            "STICKERPACK_URL", "https://t.me/addstickers/bait_tranzit"
+        ),
     )
 
 
