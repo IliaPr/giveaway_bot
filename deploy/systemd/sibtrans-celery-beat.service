@@ -1,0 +1,17 @@
+[Unit]
+Description=Sibtrans Giveaway Celery beat
+After=network.target redis.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/bot/giveaway/giveaway_bot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bot/giveaway/giveaway_bot/.venv/bin/celery -A celery_app.celery_app beat --loglevel=info
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

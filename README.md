@@ -115,7 +115,7 @@ poetry run alembic upgrade head
 
 После этого должны работать:
 
-- Telegram webhook на `WEBHOOK_BASE_URL + WEBHOOK_PATH`
+- Telegram polling внутри процесса Uvicorn
 - админка SQLAdmin на `/admin` или на пути из `ADMIN_BASE_URL`
 - фоновая обработка розыгрыша через Celery
 
@@ -134,3 +134,42 @@ poetry run alembic upgrade head
 - Бот должен быть администратором канала/группы, где проверяется подписка.
 - Бот должен иметь право писать в канал или группу, куда публикуются итоги.
 - Команда `/run_raffle` доступна только пользователям из `ADMIN_IDS`.
+
+## Запуск на сервере через systemd
+
+Если бот должен продолжать работать после выхода из SSH, не запускайте его вручную из shell. Используйте `systemd`.
+
+В репозитории есть готовые шаблоны:
+
+- `deploy/systemd/sibtrans-bot.service`
+- `deploy/systemd/sibtrans-celery-worker.service`
+- `deploy/systemd/sibtrans-celery-beat.service`
+
+1. Откройте каждый unit-файл и замените `YOUR_USER` и `/path/to/sibtrans_giveaway` на реальные значения сервера.
+2. Скопируйте файлы в `/etc/systemd/system/`.
+3. Выполните `sudo systemctl daemon-reload`.
+4. Включите и запустите сервисы:
+
+```bash
+sudo systemctl enable --now sibtrans-bot.service
+sudo systemctl enable --now sibtrans-celery-worker.service
+sudo systemctl enable --now sibtrans-celery-beat.service
+```
+
+5. Проверьте статус:
+
+```bash
+sudo systemctl status sibtrans-bot.service
+sudo systemctl status sibtrans-celery-worker.service
+sudo systemctl status sibtrans-celery-beat.service
+```
+
+6. Смотрите логи при необходимости:
+
+```bash
+sudo journalctl -u sibtrans-bot.service -f
+sudo journalctl -u sibtrans-celery-worker.service -f
+sudo journalctl -u sibtrans-celery-beat.service -f
+```
+
+`systemd` будет автоматически перезапускать процессы после падения и не привязывает их к SSH-сессии.
