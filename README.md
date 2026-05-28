@@ -1,0 +1,136 @@
+# Sibtrans Giveaway Bot
+
+Telegram-бот для регистрации участников, проверки подписки на канал, записи в Google Sheets и автоматического розыгрыша.
+
+## Обязательные переменные окружения
+
+```env
+BOT_TOKEN=123456:telegram-token
+DATABASE_URL=postgresql://user:password@localhost:5432/sibtrans_giveaway
+```
+
+## Основные настройки
+
+```env
+SUBSCRIPTION_CHAT_ID=
+SUBSCRIPTION_URL=
+RESULTS_CHAT_ID=
+RAFFLE_TIMEZONE=
+RAFFLE_AT=
+RAFFLE_DISPLAY_TEXT=
+
+CERTIFICATE_WINNERS=1
+MERCH_1_WINNERS=3
+MERCH_2_WINNERS=3
+MERCH_3_WINNERS=3
+
+STICKERPACK_TITLE=
+STICKERPACK_URL=
+ADMIN_IDS=
+```
+
+## Google Sheets
+
+Если нужно сохранять регистрации в Google Sheets, добавьте:
+
+```env
+GOOGLE_SHEET_ID=spreadsheet-id
+GOOGLE_WORKSHEET_TITLE=Регистрация
+GOOGLE_SERVICE_ACCOUNT_FILE=/absolute/path/to/service-account.json
+```
+
+Вместо файла можно передать JSON сервисного аккаунта через `GOOGLE_SERVICE_ACCOUNT_JSON`.
+
+## SQLAdmin
+
+Для веб-админки добавьте:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change_me
+ADMIN_SESSION_SECRET=change_me_too
+ADMIN_BASE_URL=/admin
+ADMIN_TITLE=Sibtrans Admin
+```
+
+После запуска админка будет доступна по пути `ADMIN_BASE_URL`.
+
+## Локальный старт всех сервисов
+
+1. Установите зависимости и создайте `.env`:
+
+```bash
+poetry install
+cp .env.example .env
+```
+
+2. Заполните `.env`.
+Обязательно проверьте `BOT_TOKEN`, `WEBHOOK_BASE_URL`, `DB_*`, `REDIS_URL`, `CELERY_*`, `ADMIN_IDS`.
+
+3. Поднимите PostgreSQL.
+Если PostgreSQL установлен через Homebrew:
+
+```bash
+brew services start postgresql
+```
+
+4. Поднимите Redis.
+Если Redis установлен через Homebrew:
+
+```bash
+brew services start redis
+```
+
+5. Примените миграции:
+
+```bash
+poetry run alembic upgrade head
+```
+
+6. Запустите FastAPI-приложение с webhook и SQLAdmin:
+
+```bash
+./.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+7. В отдельном терминале запустите Celery worker:
+
+```bash
+./.venv/bin/celery -A celery_app.celery_app worker --loglevel=info
+```
+
+8. В отдельном терминале запустите Celery beat:
+
+```bash
+./.venv/bin/celery -A celery_app.celery_app beat --loglevel=info
+```
+
+9. Если у вас нет публичного домена, поднимите туннель до локального FastAPI, например через ngrok:
+
+```bash
+ngrok http 8080
+```
+
+10. Скопируйте публичный URL ngrok в `WEBHOOK_BASE_URL` и перезапустите FastAPI.
+
+После этого должны работать:
+
+- Telegram webhook на `WEBHOOK_BASE_URL + WEBHOOK_PATH`
+- админка SQLAdmin на `/admin` или на пути из `ADMIN_BASE_URL`
+- фоновая обработка розыгрыша через Celery
+
+## Быстрый список процессов
+
+Нужно держать запущенными одновременно:
+
+- PostgreSQL
+- Redis
+- FastAPI / Uvicorn
+- Celery worker
+- Celery beat
+
+## Что важно для Telegram
+
+- Бот должен быть администратором канала/группы, где проверяется подписка.
+- Бот должен иметь право писать в канал или группу, куда публикуются итоги.
+- Команда `/run_raffle` доступна только пользователям из `ADMIN_IDS`.
