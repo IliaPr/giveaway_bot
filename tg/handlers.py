@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from aiogram import Bot, F, Router
@@ -9,6 +10,7 @@ from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from celery_app import process_raffle_task
 from db.repository import DuplicateParticipantError
+from raffle_logic import is_raffle_due
 from tg.keyboards import subscription_keyboard
 from tg.states import RegistrationForm
 
@@ -43,6 +45,13 @@ def _is_text_too_long(value: str) -> bool:
     return len(value) > MAX_TEXT_FIELD_LENGTH
 
 
+def _is_registration_closed(service: "GiveawayService") -> bool:
+    return is_raffle_due(
+        datetime.now(service.config.raffle_at.tzinfo),
+        service.config.raffle_at,
+    )
+
+
 def create_router(service: "GiveawayService") -> Router:
     router = Router(name="giveaway")
 
@@ -62,6 +71,11 @@ def create_router(service: "GiveawayService") -> Router:
                 service.format_existing_registration_message(result),
                 reply_markup=ReplyKeyboardRemove(),
             )
+            return
+
+        if _is_registration_closed(service):
+            await state.clear()
+            await message.answer("Регистрация на розыгрыш уже закрыта.")
             return
 
         if not await service.is_subscribed(bot, message.from_user.id):
@@ -96,6 +110,15 @@ def create_router(service: "GiveawayService") -> Router:
             await callback.answer()
             return
 
+        if _is_registration_closed(service):
+            await state.clear()
+            await callback.message.answer(
+                "Регистрация на розыгрыш уже закрыта.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            await callback.answer()
+            return
+
         if not await service.is_subscribed(bot, callback.from_user.id):
             await callback.answer(
                 "Подписка пока не найдена. Проверьте канал и попробуйте снова.",
@@ -121,6 +144,11 @@ def create_router(service: "GiveawayService") -> Router:
 
     @router.message(RegistrationForm.full_name)
     async def capture_full_name(message: Message, state: FSMContext) -> None:
+        if _is_registration_closed(service):
+            await state.clear()
+            await message.answer("Регистрация на розыгрыш уже закрыта.")
+            return
+
         full_name = _normalize_full_name((message.text or "").strip())
         if _is_text_too_long(full_name):
             await message.answer(
@@ -137,6 +165,11 @@ def create_router(service: "GiveawayService") -> Router:
 
     @router.message(RegistrationForm.phone)
     async def capture_phone(message: Message, state: FSMContext) -> None:
+        if _is_registration_closed(service):
+            await state.clear()
+            await message.answer("Регистрация на розыгрыш уже закрыта.")
+            return
+
         phone = (message.text or "").strip()
         if _is_text_too_long(phone):
             await message.answer(
@@ -153,6 +186,11 @@ def create_router(service: "GiveawayService") -> Router:
 
     @router.message(RegistrationForm.company)
     async def capture_company(message: Message, state: FSMContext) -> None:
+        if _is_registration_closed(service):
+            await state.clear()
+            await message.answer("Регистрация на розыгрыш уже закрыта.")
+            return
+
         company = (message.text or "").strip()
         if _is_text_too_long(company):
             await message.answer(
@@ -170,6 +208,11 @@ def create_router(service: "GiveawayService") -> Router:
     @router.message(RegistrationForm.position)
     async def capture_position(message: Message, state: FSMContext) -> None:
         if message.from_user is None:
+            return
+
+        if _is_registration_closed(service):
+            await state.clear()
+            await message.answer("Регистрация на розыгрыш уже закрыта.")
             return
 
         position = (message.text or "").strip()
