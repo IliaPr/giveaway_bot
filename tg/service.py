@@ -119,6 +119,7 @@ class GiveawayService:
         await bot.send_message(
             chat_id=self.config.results_chat_id,
             text=self._build_results_post(results),
+            disable_web_page_preview=True,
         )
         self.repository.set_meta("results_posted_at", utc_now().isoformat())
 

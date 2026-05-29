@@ -98,7 +98,7 @@ def build_results_post(
         for index, winner in enumerate(winners, start=1):
             company_suffix = f" ({escape(winner.company)})" if winner.company else ""
             display_name = winner_display_name(winner)
-            lines.append(f"{index}. {escape(display_name)}{company_suffix}")
+            lines.append(f"{index}. {display_name}{company_suffix}")
         lines.append("")
 
     if stickerpack_count:
@@ -110,11 +110,15 @@ def build_results_post(
 
 
 def winner_display_name(winner: PrizeWinner) -> str:
-    if winner.full_name:
-        return winner.full_name
     if winner.username:
-        return f"@{winner.username}"
-    return str(winner.telegram_user_id)
+        username = escape(winner.username)
+        mention = f'<a href="https://t.me/{username}">@{username}</a>'
+        if winner.full_name:
+            return f"{escape(winner.full_name)} ({mention})"
+        return mention
+    if winner.full_name:
+        return escape(winner.full_name)
+    return escape(str(winner.telegram_user_id))
 
 
 def is_raffle_due(now: datetime, raffle_at: datetime) -> bool:

@@ -29,7 +29,7 @@ MERCH_3_TITLE=🎁 Термокружка
 MERCH_3_WINNERS=5
 
 STICKERPACK_TITLE=🎁 Стикерпак Bait Tranzit
-STICKERPACK_URL=https://t.me/addstickers/bait_tranzit
+STICKERPACK_URL=
 ADMIN_IDS=
 ```
 
@@ -93,29 +93,35 @@ brew services start redis
 poetry run alembic upgrade head
 ```
 
-6. Запустите FastAPI-приложение с polling и SQLAdmin:
+6. Запустите FastAPI-приложение для админки и healthcheck:
 
 ```bash
 ./.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-7. В отдельном терминале запустите Celery worker:
+7. В отдельном терминале запустите polling-бота:
+
+```bash
+./.venv/bin/python bot_runner.py
+```
+
+8. В отдельном терминале запустите Celery worker:
 
 ```bash
 ./.venv/bin/celery -A celery_app.celery_app worker --loglevel=info
 ```
 
-8. В отдельном терминале запустите Celery beat:
+9. В отдельном терминале запустите Celery beat:
 
 ```bash
 ./.venv/bin/celery -A celery_app.celery_app beat --loglevel=info
 ```
 
-После запуска бот получает обновления через polling, поэтому публичный webhook URL и туннель больше не нужны.
+После запуска бот получает обновления через polling в отдельном процессе, поэтому публичный webhook URL и туннель больше не нужны.
 
 После этого должны работать:
 
-- Telegram polling внутри процесса Uvicorn
+- Telegram polling в отдельном процессе `bot_runner.py`
 - админка SQLAdmin на `/admin` или на пути из `ADMIN_BASE_URL`
 - фоновая обработка розыгрыша через Celery
 
@@ -126,6 +132,7 @@ poetry run alembic upgrade head
 - PostgreSQL
 - Redis
 - FastAPI / Uvicorn
+- Telegram polling bot
 - Celery worker
 - Celery beat
 
@@ -142,6 +149,7 @@ poetry run alembic upgrade head
 В репозитории есть готовые шаблоны:
 
 - `deploy/systemd/sibtrans-bot.service`
+- `deploy/systemd/sibtrans-admin.service`
 - `deploy/systemd/sibtrans-celery-worker.service`
 - `deploy/systemd/sibtrans-celery-beat.service`
 
@@ -152,6 +160,7 @@ poetry run alembic upgrade head
 
 ```bash
 sudo systemctl enable --now sibtrans-bot.service
+sudo systemctl enable --now sibtrans-admin.service
 sudo systemctl enable --now sibtrans-celery-worker.service
 sudo systemctl enable --now sibtrans-celery-beat.service
 ```
@@ -160,6 +169,7 @@ sudo systemctl enable --now sibtrans-celery-beat.service
 
 ```bash
 sudo systemctl status sibtrans-bot.service
+sudo systemctl status sibtrans-admin.service
 sudo systemctl status sibtrans-celery-worker.service
 sudo systemctl status sibtrans-celery-beat.service
 ```
@@ -168,6 +178,7 @@ sudo systemctl status sibtrans-celery-beat.service
 
 ```bash
 sudo journalctl -u sibtrans-bot.service -f
+sudo journalctl -u sibtrans-admin.service -f
 sudo journalctl -u sibtrans-celery-worker.service -f
 sudo journalctl -u sibtrans-celery-beat.service -f
 ```

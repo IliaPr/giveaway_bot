@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+MAX_TEXT_FIELD_LENGTH = 1024
+
 
 def _normalize_full_name(full_name: str) -> str:
     return " ".join(full_name.split())
@@ -35,6 +37,10 @@ def _is_valid_phone(phone: str) -> bool:
         return False
     digits_only = re.sub(r"\D", "", phone)
     return 10 <= len(digits_only) <= 15
+
+
+def _is_text_too_long(value: str) -> bool:
+    return len(value) > MAX_TEXT_FIELD_LENGTH
 
 
 def create_router(service: "GiveawayService") -> Router:
@@ -68,7 +74,7 @@ def create_router(service: "GiveawayService") -> Router:
             return
 
         await state.set_state(RegistrationForm.full_name)
-        await message.answer("Введите ФИО.", reply_markup=ReplyKeyboardRemove())
+        await message.answer("Введите ФИО:", reply_markup=ReplyKeyboardRemove())
 
     @router.callback_query(F.data == "recheck_subscription")
     async def recheck_subscription(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
@@ -99,7 +105,7 @@ def create_router(service: "GiveawayService") -> Router:
 
         await state.set_state(RegistrationForm.full_name)
         await callback.message.answer(
-            "Подписка подтверждена. Введите ФИО.",
+            "Подписка подтверждена. Введите ФИО:",
             reply_markup=ReplyKeyboardRemove(),
         )
         await callback.answer()
@@ -116,35 +122,50 @@ def create_router(service: "GiveawayService") -> Router:
     @router.message(RegistrationForm.full_name)
     async def capture_full_name(message: Message, state: FSMContext) -> None:
         full_name = _normalize_full_name((message.text or "").strip())
+        if _is_text_too_long(full_name):
+            await message.answer(
+                "Сообщение слишком длинное. Максимальная длина: 1024 символа."
+            )
+            return
         if not _is_valid_full_name(full_name):
-            await message.answer("Укажите ФИО из 2 или 3 слов.")
+            await message.answer("Укажите ФИО из 2 или 3 слов. <i>Например: Иванов Иван Иванович</i>", parse_mode="HTML")
             return
 
         await state.update_data(full_name=full_name)
         await state.set_state(RegistrationForm.phone)
-        await message.answer("Введите телефон.", reply_markup=ReplyKeyboardRemove())
+        await message.answer("Введите телефон: <i>Например: +7 123 456 78 90</i>", reply_markup=ReplyKeyboardRemove(), parse_mode="HTML")
 
     @router.message(RegistrationForm.phone)
     async def capture_phone(message: Message, state: FSMContext) -> None:
         phone = (message.text or "").strip()
+        if _is_text_too_long(phone):
+            await message.answer(
+                "Сообщение слишком длинное. Максимальная длина: 1024 символа."
+            )
+            return
         if not _is_valid_phone(phone):
-            await message.answer("Укажите корректный телефон.")
+            await message.answer("Укажите корректный телефон. <i>Например: +7 123 456 78 90</i>", parse_mode="HTML")
             return
 
         await state.update_data(phone=phone)
         await state.set_state(RegistrationForm.company)
-        await message.answer("Введите компанию.")
+        await message.answer("Укажите название компании:", reply_markup=ReplyKeyboardRemove())
 
     @router.message(RegistrationForm.company)
     async def capture_company(message: Message, state: FSMContext) -> None:
         company = (message.text or "").strip()
+        if _is_text_too_long(company):
+            await message.answer(
+                "Сообщение слишком длинное. Максимальная длина: 1024 символа."
+            )
+            return
         if len(company) < 2:
-            await message.answer("Укажите название компании.")
+            await message.answer("Укажите название компании:", reply_markup=ReplyKeyboardRemove())
             return
 
         await state.update_data(company=company)
         await state.set_state(RegistrationForm.position)
-        await message.answer("Введите должность.")
+        await message.answer("Укажите Вашу должность:", reply_markup=ReplyKeyboardRemove())
 
     @router.message(RegistrationForm.position)
     async def capture_position(message: Message, state: FSMContext) -> None:
@@ -152,8 +173,13 @@ def create_router(service: "GiveawayService") -> Router:
             return
 
         position = (message.text or "").strip()
+        if _is_text_too_long(position):
+            await message.answer(
+                "Сообщение слишком длинное. Максимальная длина: 1024 символа."
+            )
+            return
         if len(position) < 2:
-            await message.answer("Укажите должность.")
+            await message.answer("Укажите Вашу должность:", reply_markup=ReplyKeyboardRemove())
             return
 
         data = await state.get_data()
