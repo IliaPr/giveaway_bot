@@ -41,6 +41,10 @@ def _is_valid_phone(phone: str) -> bool:
     return 10 <= len(digits_only) <= 15
 
 
+def _normalize_phone(phone: str) -> str:
+    return f"+{re.sub(r'\D', '', phone)}"
+
+
 def _is_text_too_long(value: str) -> bool:
     return len(value) > MAX_TEXT_FIELD_LENGTH
 
@@ -180,7 +184,7 @@ def create_router(service: "GiveawayService") -> Router:
             await message.answer("Укажите корректный телефон. <i>Например: +7 123 456 78 90</i>", parse_mode="HTML")
             return
 
-        await state.update_data(phone=phone)
+        await state.update_data(phone=_normalize_phone(phone))
         await state.set_state(RegistrationForm.company)
         await message.answer("Укажите название компании:", reply_markup=ReplyKeyboardRemove())
 
