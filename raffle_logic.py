@@ -79,34 +79,64 @@ def build_results_post(
     stickerpack_prize: PrizeCategory,
 ) -> str:
     grouped: dict[str, list[PrizeWinner]] = defaultdict(list)
-    titles: dict[str, str] = {}
-    stickerpack_count = 0
 
     for result in results:
         if result.prize_code == stickerpack_prize.code:
-            stickerpack_count += 1
             continue
         grouped[result.prize_code].append(result)
-        titles[result.prize_code] = result.prize_title
 
-    lines = ["Итоги розыгрыша «Байт Транзит»", ""]
-    for prize in competitive_prizes:
-        winners = grouped.get(prize.code, [])
-        if not winners:
-            continue
-        lines.append(escape(titles[prize.code]))
-        for index, winner in enumerate(winners, start=1):
-            company_suffix = f" ({escape(winner.company)})" if winner.company else ""
-            display_name = winner_display_name(winner)
-            lines.append(f"{index}. {display_name}{company_suffix}")
-        lines.append("")
+    lines = [
+        "🎉Итоги розыгрыша среди участников выставки «Уголь России и Майнинг» в Новокузнецке",
+        "",
+        "Добрый день! С 2 по 5 июня команда «Байт Транзит» принимает участие в XXXIV Международной специализированной выставке технологий горных разработок «Уголь России и Майнинг» в Новокузнецке. Среди участников выставки компания «Байт Транзит» провела беспроигрышную лотерею. Главный приз - сертификат на 100 000 руб. на сборные грузоперевозки по России. Розыгрыш состоялся 4 июня в 18.00 по местному времени (14:00 по МСК)",
+        "",
+        "Поздравляем:",
+        "",
+    ]
 
-    if stickerpack_count:
-        lines.append(
-            f"{escape(stickerpack_prize.title)} получают все остальные участники: {stickerpack_count}"
-        )
+    prize_labels = {
+        "certificate": "🏆 Сертификат на перевозку 100 000 рублей —",
+        "merch_1": "🎁 Увлажнитель воздуха -",
+        "merch_2": "🎁 Термос -",
+        "merch_3": "🎁 Кружка -",
+    }
+    prizes_by_code = {prize.code: prize for prize in competitive_prizes}
+
+    for prize_code, label in prize_labels.items():
+        prize = prizes_by_code.get(prize_code)
+        winners = grouped.get(prize_code, []) if prize else []
+        lines.extend(format_public_winners_line(label, winners))
+
+    lines.extend(
+        [
+            "",
+            "Все остальные участники розыгрыша получили уникальные стикерпак для телеграма",
+            "",
+            "Благодарим всех участников за интерес к нашей компании и до встречи на других мероприятиях в вашем городе!",
+            "Ваш надежный партнер «Байт Транзит» 🤝",
+        ]
+    )
 
     return "\n".join(lines).strip()
+
+
+def format_public_winners_line(label: str, winners: list[PrizeWinner]) -> list[str]:
+    if not winners:
+        return [label]
+    if len(winners) == 1:
+        return [f"{label} {winner_public_name(winners[0])}"]
+    return [
+        label,
+        *(
+            f"{index}. {winner_public_name(winner)}"
+            for index, winner in enumerate(winners, start=1)
+        ),
+    ]
+
+
+def winner_public_name(winner: PrizeWinner) -> str:
+    company_suffix = f" ({escape(winner.company)})" if winner.company else ""
+    return f"{winner_display_name(winner)}{company_suffix}"
 
 
 def winner_display_name(winner: PrizeWinner) -> str:
