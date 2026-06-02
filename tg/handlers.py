@@ -85,7 +85,7 @@ def create_router(service: "GiveawayService") -> Router:
         if not await service.is_subscribed(bot, message.from_user.id):
             await state.clear()
             await message.answer(
-                "Чтобы участвовать в розыгрыше, подпишитесь на канал @sbtrntst и затем подтвердите подписку.",
+                "Чтобы участвовать в розыгрыше, подпишитесь на канал https://t.me/sibtrans_ru и затем подтвердите подписку.",
                 reply_markup=subscription_keyboard(
                     service.config.subscription_url),
             )
