@@ -21,7 +21,7 @@ class GoogleSheetsClient:
 
     async def append_participant(self, participant: Participant) -> None:
         if not self.is_configured:
-            raise RuntimeError("Google Sheets integration is not configured.")
+            return
         await asyncio.to_thread(self._append_participant_sync, participant)
 
     def _append_participant_sync(self, participant: Participant) -> None:

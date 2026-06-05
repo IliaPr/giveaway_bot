@@ -60,6 +60,10 @@ def _to_async_dsn(database_url: str) -> str:
         "DATABASE_URL must start with postgresql:// or postgresql+asyncpg://")
 
 
+def build_sync_engine(database_url: str):
+    return create_engine(_to_sync_dsn(_normalize_database_url(database_url)))
+
+
 class Config:
     SYNC_CONFIG = _to_sync_dsn(_require_database_url())
     DB_CONFIG = _to_async_dsn(SYNC_CONFIG)
@@ -118,7 +122,7 @@ sessionmanager = DatabaseSessionManager()
 
 engine = create_async_engine(config.DB_CONFIG)
 
-sync_engine = create_engine(config.SYNC_CONFIG)
+sync_engine = build_sync_engine(config.SYNC_CONFIG)
 SyncSession = sessionmaker(bind=sync_engine)
 
 

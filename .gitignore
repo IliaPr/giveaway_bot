@@ -16,5 +16,9 @@ autopep8
 .venv/
 .pytest_cache
 celerybeat-schedule.db
+celerybeat-schedule
 credentials.json
+service-account*.json
+sibtransbot-*.json
+giveaway-*.json
 hd_statistics/

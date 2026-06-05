@@ -117,7 +117,7 @@ poetry run alembic upgrade head
 ./.venv/bin/celery -A celery_app.celery_app beat --loglevel=info
 ```
 
-После запуска бот получает обновления через polling в отдельном процессе, поэтому публичный webhook URL и туннель больше не нужны.
+После запуска бот получает обновления через polling в отдельном процессе, поэтому webhook-режим здесь не используется.
 
 После этого должны работать:
 

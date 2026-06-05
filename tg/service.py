@@ -64,6 +64,9 @@ class GiveawayService:
             position=position,
         )
 
+        if not self.sheets_client.is_configured:
+            return participant, None
+
         sync_error: str | None = None
         try:
             await self.sheets_client.append_participant(participant)
@@ -98,6 +101,7 @@ class GiveawayService:
                     "User %s blocked the bot before result notification.",
                     result.telegram_user_id,
                 )
+                self.repository.mark_result_notified(result.result_id)
                 continue
             except TelegramBadRequest:
                 logger.exception(
@@ -135,4 +139,5 @@ class GiveawayService:
             results,
             competitive_prizes=self.config.competitive_prizes,
             stickerpack_prize=self.config.stickerpack_prize,
+            raffle_display_text=self.config.raffle_display_text,
         )

@@ -77,6 +77,7 @@ def build_results_post(
     *,
     competitive_prizes: tuple[PrizeCategory, ...],
     stickerpack_prize: PrizeCategory,
+    raffle_display_text: str,
 ) -> str:
     grouped: dict[str, list[PrizeWinner]] = defaultdict(list)
 
@@ -88,29 +89,19 @@ def build_results_post(
     lines = [
         "🎉Итоги розыгрыша среди участников выставки «Уголь России и Майнинг» в Новокузнецке",
         "",
-        "Добрый день! С 2 по 5 июня команда «Байт Транзит» принимает участие в XXXIV Международной специализированной выставке технологий горных разработок «Уголь России и Майнинг» в Новокузнецке. Среди участников выставки компания «Байт Транзит» провела беспроигрышную лотерею. Главный приз - сертификат на 100 000 руб. на сборные грузоперевозки по России. Розыгрыш состоялся 4 июня в 18.00 по местному времени (14:00 по МСК)",
+        f"Розыгрыш от «Байт Транзит» состоялся {escape(raffle_display_text)}.",
         "",
         "Поздравляем:",
         "",
     ]
-
-    prize_labels = {
-        "certificate": "🏆 Сертификат на перевозку 100 000 рублей —",
-        "merch_1": "🎁 Увлажнитель воздуха -",
-        "merch_2": "🎁 Термос -",
-        "merch_3": "🎁 Кружка -",
-    }
-    prizes_by_code = {prize.code: prize for prize in competitive_prizes}
-
-    for prize_code, label in prize_labels.items():
-        prize = prizes_by_code.get(prize_code)
-        winners = grouped.get(prize_code, []) if prize else []
-        lines.extend(format_public_winners_line(label, winners))
+    for prize in sorted(competitive_prizes, key=lambda item: item.order):
+        winners = grouped.get(prize.code, [])
+        lines.extend(format_public_winners_line(f"{escape(prize.title)} -", winners))
 
     lines.extend(
         [
             "",
-            "Все остальные участники розыгрыша получили уникальные стикерпак для телеграма",
+            f"Все остальные участники розыгрыша получили приз: {escape(stickerpack_prize.title)}",
             "",
             "Благодарим всех участников за интерес к нашей компании и до встречи на других мероприятиях в вашем городе!",
             "Ваш надежный партнер «Байт Транзит» 🤝",

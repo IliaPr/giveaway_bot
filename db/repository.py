@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import DatabaseError
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
-from db.db_config import SyncSession
+from db.db_config import SyncSession, build_sync_engine
 from db.models import AppMetaModel, ParticipantModel, RaffleResultModel
 from db.schemas import Participant, PrizeAssignment, PrizeWinner
 
@@ -20,6 +22,11 @@ class DuplicateParticipantError(Exception):
 class Repository:
     def __init__(self, database_dsn: str | None = None) -> None:
         self.database_dsn = database_dsn
+        if database_dsn:
+            engine = build_sync_engine(database_dsn)
+            self._session_factory = sessionmaker(bind=engine)
+        else:
+            self._session_factory = SyncSession
 
     def get_participant_by_telegram_user_id(self, telegram_user_id: int) -> Participant | None:
         with self._session() as session:
@@ -122,8 +129,18 @@ class Repository:
         ]
 
         with self._session() as session:
+            try:
+                session.execute(text("SELECT pg_advisory_xact_lock(847621)"))
+            except DatabaseError:
+                session.rollback()
+            if session.scalar(select(RaffleResultModel.id).limit(1)) is not None:
+                return self.list_results()
             session.add_all(rows)
-            session.commit()
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                return self.list_results()
 
         return self.list_results()
 
@@ -186,7 +203,7 @@ class Repository:
             session.commit()
 
     def _session(self):
-        return SyncSession()
+        return self._session_factory()
 
     @staticmethod
     def _participant_from_model(model: ParticipantModel | None) -> Participant | None:
