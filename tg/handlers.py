@@ -97,8 +97,7 @@ def create_router(service: "GiveawayService") -> Router:
     @router.callback_query(F.data == "recheck_subscription")
     async def recheck_subscription(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
         if callback.from_user is None or callback.message is None:
-            await callback.answer()
-            return
+            return await callback.answer()
 
         existing_participant = service.repository.get_participant_by_telegram_user_id(
             callback.from_user.id

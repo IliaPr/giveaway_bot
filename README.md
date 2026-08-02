@@ -1,25 +1,176 @@
 # Sibtrans Giveaway Bot
 
-Telegram-бот для регистрации участников, проверки подписки на канал, записи в Google Sheets и автоматического розыгрыша.
+Telegram-бот для проведения промо-розыгрышей: проверяет подписку на канал, регистрирует участников, сохраняет контактные данные, автоматически распределяет призы и публикует результаты.
 
-## Обязательные переменные окружения
+Проект объединяет Telegram-интерфейс для участников, защищённую веб-админку для организаторов и фоновый контур, который проводит розыгрыш в заданное время. Все критичные данные хранятся в PostgreSQL, а выгрузку регистраций в Google Sheets можно подключить как дополнительную интеграцию.
+
+## Возможности
+
+- проверка подписки пользователя на Telegram-канал;
+- пошаговая регистрация через FSM: ФИО, телефон, компания и должность;
+- валидация и нормализация пользовательских данных;
+- защита от повторной регистрации на уровне приложения и базы данных;
+- настраиваемые категории призов и количество победителей;
+- автоматический запуск розыгрыша по расписанию через Celery Beat;
+- ручной запуск администратором командой `/run_raffle`;
+- персональное уведомление каждого участника о результате;
+- публикация итогового списка победителей в Telegram-канале;
+- опциональная синхронизация регистраций с Google Sheets;
+- веб-админка для просмотра участников, результатов и служебных метаданных;
+- миграции базы данных. 
+
+## Как это работает
+
+1. Пользователь запускает бота и подтверждает подписку на канал.
+2. Бот последовательно собирает и проверяет регистрационные данные.
+3. Регистрация сохраняется в PostgreSQL и, если настроена интеграция, дублируется в Google Sheets.
+4. После наступления заданного времени Celery-задача случайно распределяет призы между участниками.
+5. Бот отправляет персональные результаты и один раз публикует итоги в канале.
+
+```mermaid
+flowchart LR
+    User[Участник] --> TG["Telegram Bot<br/>aiogram"]
+    TG --> Service[Giveaway Service]
+    Service --> DB[(PostgreSQL)]
+    Service -. опционально .-> Sheets[Google Sheets]
+
+    Beat[Celery Beat] --> Redis[(Redis)]
+    Redis --> Worker[Celery Worker]
+    Worker --> DB
+    Worker --> API[Telegram Bot API]
+
+    Admin[Организатор] --> Web[FastAPI + SQLAdmin]
+    Web --> DB
+```
+
+## Технические решения
+
+### Надёжный розыгрыш
+
+Для случайного выбора используется `SystemRandom`. После победы в одной конкурентной категории участник исключается из дальнейшей выборки, поэтому один человек не может получить несколько основных призов. Остальным участникам назначается поощрительный приз.
+
+Результат розыгрыша сохраняется в базе и повторно не генерируется. Транзакционная advisory-блокировка PostgreSQL и уникальное ограничение на участника защищают обработку от одновременного запуска нескольких worker-процессов.
+
+### Доставка с возможностью повторной попытки
+
+Для каждого результата отдельно хранится время отправки уведомления. Если Telegram временно не принял сообщение, следующая Celery-задача повторит отправку только для необработанных записей. Публикация общего поста также защищена служебным флагом от дублирования.
+
+### Независимость от Google Sheets
+
+PostgreSQL остаётся основным источником данных. Ошибка внешней интеграции не блокирует регистрацию: участник сохраняется локально, а информация об ошибке синхронизации становится доступна в админке.
+
+## Стек
+
+| Область | Технологии |
+|---|---|
+| Telegram-бот | Python 3.14, aiogram 3, Redis FSM |
+| API и админка | FastAPI, SQLAdmin, Uvicorn |
+| Данные | PostgreSQL, SQLAlchemy 2, Alembic |
+| Фоновые задачи | Celery, Celery Beat, Redis |
+| Интеграции | Telegram Bot API, Google Sheets API, gspread |
+| Конфигурация и модели | python-dotenv, Pydantic |
+| Тестирование | unittest |
+
+## Структура проекта
+
+```text
+.
+├── admin/                 # SQLAdmin: авторизация и представления
+├── alembic/               # миграции PostgreSQL
+├── db/                    # ORM-модели, схемы и репозиторий
+├── deploy/systemd/        # unit-файлы для серверного запуска
+├── tests/                 # тесты конфигурации и логики розыгрыша
+├── tg/                    # handlers, FSM, клавиатуры и сервисный слой
+├── bot_runner.py          # запуск Telegram polling
+├── celery_app.py          # worker, beat и задача розыгрыша
+├── config.py              # типизированная конфигурация
+├── google_sheets.py       # интеграция с Google Sheets
+├── main.py                # FastAPI, SQLAdmin и healthcheck
+├── raffle_logic.py        # выбор победителей и генерация сообщений
+└── runtime.py             # сборка и завершение компонентов приложения
+```
+
+## Локальный запуск
+
+### Требования
+
+- Python `3.14`;
+- Poetry `2.x`;
+- PostgreSQL;
+- Redis;
+- Telegram-бот, созданный через [@BotFather](https://t.me/BotFather).
+
+### 1. Установите зависимости
+
+```bash
+poetry install
+cp .env.example .env
+```
+
+### 2. Настройте окружение
+
+Минимально необходимые параметры:
 
 ```env
 BOT_TOKEN=123456:telegram-token
-DATABASE_URL=postgresql://user:password@localhost:5432/sibtrans_giveaway
+
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME=sibtrans_giveaway
+
+REDIS_URL=redis://localhost:6379/0
 ```
 
-## Основные настройки
+Вместо набора `DB_*` можно указать одну строку подключения:
 
 ```env
-SUBSCRIPTION_CHAT_ID=
-SUBSCRIPTION_URL=
-RESULTS_CHAT_ID=
-RAFFLE_TIMEZONE=
-RAFFLE_AT=
-RAFFLE_DISPLAY_TEXT=
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sibtrans_giveaway
+```
 
-CERTIFICATE_TITLE=🏆 Сертификат на перевозку
+Все доступные параметры с примерами перечислены в [`.env.example`](.env.example).
+
+### 3. Подготовьте инфраструктуру
+
+Запустите PostgreSQL и Redis, создайте базу данных, затем примените миграции:
+
+```bash
+poetry run alembic upgrade head
+```
+
+### 4. Запустите сервисы
+
+Каждая команда выполняется в отдельном терминале:
+
+```bash
+# API, healthcheck и веб-админка
+poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Telegram-бот в polling-режиме
+poetry run python bot_runner.py
+
+# Обработчик фоновых задач
+poetry run celery -A celery_app.celery_app worker --loglevel=info
+
+# Планировщик розыгрыша
+poetry run celery -A celery_app.celery_app beat --loglevel=info
+```
+
+Проверить API можно по адресу `http://localhost:8000/healthz`. При заполненных `ADMIN_USERNAME` и `ADMIN_PASSWORD` админка доступна на `http://localhost:8000/admin` или по пути из `ADMIN_BASE_URL`.
+
+## Конфигурация розыгрыша
+
+```env
+SUBSCRIPTION_CHAT_ID=@channel
+SUBSCRIPTION_URL=https://t.me/channel
+RESULTS_CHAT_ID=@channel
+
+RAFFLE_TIMEZONE=Asia/Novosibirsk
+RAFFLE_AT=2026-06-04T18:00:00
+RAFFLE_DISPLAY_TEXT=4 июня в 18:00
+
+CERTIFICATE_TITLE=🏆 Сертификат 
 CERTIFICATE_WINNERS=1
 MERCH_1_TITLE=🎁 Увлажнитель воздуха
 MERCH_1_WINNERS=1
@@ -28,16 +179,18 @@ MERCH_2_WINNERS=2
 MERCH_3_TITLE=🎁 Термокружка
 MERCH_3_WINNERS=5
 
-STICKERPACK_TITLE=🎁 Стикерпак Bait Tranzit
-STICKERPACK_URL=
-ADMIN_IDS=
+STICKERPACK_TITLE=🎁 Стикерпак
+STICKERPACK_URL=https://t.me/addstickers/example
+ADMIN_IDS=123456789,987654321
 ```
 
-`*_WINNERS` задают число отдельных победителей по категории. Если `MERCH_3_TITLE=🎁 Термокружка` и `MERCH_3_WINNERS=5`, бот выберет 5 разных участников на термокружки.
+`*_WINNERS` задаёт число отдельных победителей в категории. Категории с нулевым количеством пропускаются. Команда `/run_raffle` доступна только Telegram-пользователям из `ADMIN_IDS`.
+
+> `RAFFLE_AT` определяет фактическое время закрытия регистрации и запуска розыгрыша, а `RAFFLE_DISPLAY_TEXT` — человекочитаемый текст в сообщениях. Эти значения нужно согласовать между собой.
 
 ## Google Sheets
 
-Если нужно сохранять регистрации в Google Sheets, добавьте:
+Интеграция опциональна. Для её включения укажите таблицу и учётные данные сервисного аккаунта:
 
 ```env
 GOOGLE_SHEET_ID=spreadsheet-id
@@ -45,142 +198,21 @@ GOOGLE_WORKSHEET_TITLE=Регистрация
 GOOGLE_SERVICE_ACCOUNT_FILE=/absolute/path/to/service-account.json
 ```
 
-Вместо файла можно передать JSON сервисного аккаунта через `GOOGLE_SERVICE_ACCOUNT_JSON`.
+Вместо файла с учётными данными можно передать JSON через `GOOGLE_SERVICE_ACCOUNT_JSON`. Таблицу необходимо заранее открыть сервисному аккаунту. Если лист с указанным названием отсутствует, приложение создаст его автоматически.
 
-## SQLAdmin
+## Telegram-права
 
-Для веб-админки добавьте:
+- бот должен быть администратором канала или группы, где проверяется подписка;
+- бот должен иметь право отправлять сообщения в канал с результатами;
+- пользователь должен хотя бы один раз открыть диалог с ботом, чтобы получить персональное уведомление.
 
-```env
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=change_me
-ADMIN_SESSION_SECRET=change_me_too
-ADMIN_BASE_URL=/admin
-ADMIN_TITLE=Sibtrans Admin
+
+## Healthcheck
+
+```http
+GET /healthz
 ```
 
-После запуска админка будет доступна по пути `ADMIN_BASE_URL`.
-
-## Локальный старт всех сервисов
-
-1. Установите зависимости и создайте `.env`:
-
-```bash
-poetry install
-cp .env.example .env
+```json
+{"status": "ok"}
 ```
-
-2. Заполните `.env`.
-Обязательно проверьте `BOT_TOKEN`, `DB_*`, `REDIS_URL`, `CELERY_*`, `ADMIN_IDS`.
-
-3. Поднимите PostgreSQL.
-Если PostgreSQL установлен через Homebrew:
-
-```bash
-brew services start postgresql
-```
-
-4. Поднимите Redis.
-Если Redis установлен через Homebrew:
-
-```bash
-brew services start redis
-```
-
-5. Примените миграции:
-
-```bash
-poetry run alembic upgrade head
-```
-
-6. Запустите FastAPI-приложение для админки и healthcheck:
-
-```bash
-./.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-7. В отдельном терминале запустите polling-бота:
-
-```bash
-./.venv/bin/python bot_runner.py
-```
-
-8. В отдельном терминале запустите Celery worker:
-
-```bash
-./.venv/bin/celery -A celery_app.celery_app worker --loglevel=info
-```
-
-9. В отдельном терминале запустите Celery beat:
-
-```bash
-./.venv/bin/celery -A celery_app.celery_app beat --loglevel=info
-```
-
-После запуска бот получает обновления через polling в отдельном процессе, поэтому webhook-режим здесь не используется.
-
-После этого должны работать:
-
-- Telegram polling в отдельном процессе `bot_runner.py`
-- админка SQLAdmin на `/admin` или на пути из `ADMIN_BASE_URL`
-- фоновая обработка розыгрыша через Celery
-
-## Быстрый список процессов
-
-Нужно держать запущенными одновременно:
-
-- PostgreSQL
-- Redis
-- FastAPI / Uvicorn
-- Telegram polling bot
-- Celery worker
-- Celery beat
-
-## Что важно для Telegram
-
-- Бот должен быть администратором канала/группы, где проверяется подписка.
-- Бот должен иметь право писать в канал или группу, куда публикуются итоги.
-- Команда `/run_raffle` доступна только пользователям из `ADMIN_IDS`.
-
-## Запуск на сервере через systemd
-
-Если бот должен продолжать работать после выхода из SSH, не запускайте его вручную из shell. Используйте `systemd`.
-
-В репозитории есть готовые шаблоны:
-
-- `deploy/systemd/sibtrans-bot.service`
-- `deploy/systemd/sibtrans-admin.service`
-- `deploy/systemd/sibtrans-celery-worker.service`
-- `deploy/systemd/sibtrans-celery-beat.service`
-
-1. Откройте каждый unit-файл и замените `YOUR_USER` и `/path/to/sibtrans_giveaway` на реальные значения сервера.
-2. Скопируйте файлы в `/etc/systemd/system/`.
-3. Выполните `sudo systemctl daemon-reload`.
-4. Включите и запустите сервисы:
-
-```bash
-sudo systemctl enable --now sibtrans-bot.service
-sudo systemctl enable --now sibtrans-admin.service
-sudo systemctl enable --now sibtrans-celery-worker.service
-sudo systemctl enable --now sibtrans-celery-beat.service
-```
-
-5. Проверьте статус:
-
-```bash
-sudo systemctl status sibtrans-bot.service
-sudo systemctl status sibtrans-admin.service
-sudo systemctl status sibtrans-celery-worker.service
-sudo systemctl status sibtrans-celery-beat.service
-```
-
-6. Смотрите логи при необходимости:
-
-```bash
-sudo journalctl -u sibtrans-bot.service -f
-sudo journalctl -u sibtrans-admin.service -f
-sudo journalctl -u sibtrans-celery-worker.service -f
-sudo journalctl -u sibtrans-celery-beat.service -f
-```
-
-`systemd` будет автоматически перезапускать процессы после падения и не привязывает их к SSH-сессии.
